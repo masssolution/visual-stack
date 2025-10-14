@@ -1,5 +1,5 @@
-import { GridContainer } from './GridContainer';
-import { GridItemSchema } from '../utils/types';
+import { GridContainer } from './GridContainer.js';
+import { type GridItemSchema } from '../utils/types.js';
 
 export class SchemaManager {
   constructor(private grid: GridContainer) {}

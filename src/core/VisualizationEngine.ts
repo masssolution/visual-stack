@@ -1,10 +1,18 @@
-import { ChartType, ChartData, ChartConfig } from '../utils/types';
-import { ChartRegistry } from '../charts/ChartRegistry';
+import {
+  type ChartType,
+  type ChartData,
+  type ChartConfig,
+} from "../utils/types.js";
+import { ChartRegistry } from "../charts/ChartRegistry.js";
 
 export class VisualizationEngine {
-  static render(container: HTMLElement, type: ChartType, data: ChartData[], config: ChartConfig) {
-    container.innerHTML = '';
-    const chart = ChartRegistry.create(type, container, data, config);
+  private container: HTMLElement;
+  constructor(container: HTMLElement) {
+    this.container = container;
+  }
+  render(type: ChartType, data: ChartData[], config: ChartConfig) {
+    this.container.innerHTML = "";
+    const chart = ChartRegistry.create(type, this.container, data, config);
     chart.render();
     return chart;
   }

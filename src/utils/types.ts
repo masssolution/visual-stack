@@ -1,6 +1,6 @@
 export interface ChartData {
   label: string;
-  value: number;
+  value: number | string;
 }
 
 export interface ChartConfig {
@@ -15,7 +15,7 @@ export interface ChartConfig {
   [key: string]: any;
 }
 
-export type ChartType = 'bar-chart' | 'line-chart' | 'pie-chart' | 'custom-chart';
+export type ChartType = "bar-chart" | "line-chart" | "pie-chart";
 
 export interface GridItemSchema {
   id: string;

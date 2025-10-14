@@ -1,0 +1,7 @@
+name = "visual-stack"
+version = "1.0.0"
+description = "Flexible Grid and Visualization Library powered by D3.js"
+entry = "src/index.ts"
+outdir = "dist"
+minify = true
+target = "browser"

@@ -1,5 +1,5 @@
-import { GridItemSchema, GridOptions } from '../utils/types';
-import { createChart } from '../charts/BaseChart';
+import { type GridItemSchema, type GridOptions } from '../utils/types.js';
+import { VisualizationEngine } from './VisualizationEngine.js';
 
 export class GridContainer {
   private container: HTMLElement;
@@ -30,8 +30,9 @@ export class GridContainer {
     item.style.gridRow = `span ${schema.height || 3}`;
 
     // Render visualization
-    const chart = createChart(schema.type, schema.data, schema.config);
-    item.appendChild(chart);
+    const engine = new VisualizationEngine(item)
+
+    engine.render()
 
     this.container.appendChild(item);
     this.items.set(id, item);
