@@ -1,4 +1,69 @@
-# Visual Stack - A Flexible Grid and Visualization Library
+# Insights Framework
+
+A framework-neutral TypeScript/D3 canvas library with a small React demo. The
+demo implements the Insights Canvas prototype against synthetic data; it does not
+call the Insights API or save board changes.
+
+```shell
+npm ci
+npm run dev
+npm run lint
+npm run typecheck
+npm run build
+npx playwright install chromium
+npm test
+```
+
+`npm run build` emits the ESM library and TypeScript declarations in `dist` and
+the static demo in `demo/dist`. The browser tests can use an installed Edge
+browser by setting `PLAYWRIGHT_CHANNEL=msedge`. Set `INSIGHT_PROTOTYPE` to the
+absolute path to `insight-canvas-prototype.html` to enable the optional desktop
+comparison and capture both views.
+
+In the demo, switch between Board and Thread without losing Board changes. On a
+wide Board, use the move and resize handles with the pointer or focus them and
+use the arrow keys. Placements snap to the grid; overlaps and out-of-bounds
+edits leave the last committed placement intact. A narrow Board stacks cards
+without changing their desktop positions. Reload restores the fixtures. Use a
+recent question in the composer to see a sample result, or open a card's
+inspector to see its fixture reasoning, contract, and SQL when available.
+
+## Current library API
+
+- `knowledge/visualization-v1.json` describes the supported v1 proposal and
+  display contract for an AI host. `parseVisualizationContract` validates a
+  display payload at runtime; `renderVisualization(element, payload)` validates
+  and renders it. V1 supports non-negative categorical bar and donut charts;
+  donuts require a positive total and show each category's share.
+  The host owns AI, privacy, fetching, and binding authorized data.
+- `GridContainer.create({ columns, items })` and `Schema.create(...)` validate
+  an initial layout. Use `addItem`, `updateItem`, and `removeItem` on the returned
+  grid to obtain a new grid or an explicit failure reason. Widget content is
+  caller-owned. A placement has zero-based `x`, `y` and positive `w`, `h`.
+- `createChart(element, spec)` renders D3 SVG for a horizontal bar chart or
+  line panels with a shared x-axis. The returned object supports
+  `updateData(spec)` and `destroy()`. The library does not fetch chart data.
+- CSS layout, pointer/keyboard bindings, and KPI and table presentation live
+  in the example app. The upstream DOM selector API, a pie renderer, a public
+  plugin interface, and npm publication are not part of this milestone.
+
+## Migration boundary
+
+The existing Insights Platform remains the source of truth for live queries.
+The next step is a demo-app adapter for the existing Canvas answer contract,
+including visualization coverage and inspection metadata, without moving the
+Python backend. Compare the two Canvas implementations before cutover, and
+decide how to transfer any browser-local reports separately from backend
+reports. Export, sharing, and live refresh are intentionally unavailable in the
+fixture demo.
+
+## Original Visual Stack design
+
+This file was modified for Insights Framework. The upstream design is retained
+below for reference; its package-installation and API examples are proposals,
+not instructions for this fork.
+
+### Visual Stack - A Flexible Grid and Visualization Library
 
 `Visual Stack` is a lightweight, modular JavaScript library that combines dynamic grid layouts with data visualizations. Powered by **VisualStack.js** for grid management and **D3.js** for rendering charts, `Visual Stack` allows you to create interactive and customizable dashboards with ease.
 
