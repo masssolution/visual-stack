@@ -137,3 +137,13 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+.activity/
+.harness/
+.harness-core.json
+.agents/
+.claude/
+.clinerules
+.cursor/
+.gemini/
+.windsurf/
+.github/copilot-instructions.md
