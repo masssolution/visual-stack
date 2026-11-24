@@ -5,7 +5,7 @@ it('accepts a versioned bar contract and rejects unsupported versions, malformed
   const valid = { version: '1', kind: 'bar', title: 'Revenue', unit: 'AED', data: [{ label: 'East', value: 4 }] };
   expect(parseVisualizationContract(valid)).toEqual(valid);
   for (const invalid of [
-    { ...valid, version: '2' },
+    { ...valid, version: '3' },
     { ...valid, data: [{ label: 'East', value: -1 }] },
     { ...valid, data: [{ label: 'East', value: NaN }] },
     { ...valid, data: [{ label: '  ', value: 1 }] },

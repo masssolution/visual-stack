@@ -1,51 +1,30 @@
 import { arc, format, pie, select } from 'd3';
 import type { PieArcDatum } from 'd3';
+import * as echarts from 'echarts/core';
+import { BarChart, FunnelChart, HeatmapChart, LineChart, PieChart, SankeyChart, ScatterChart, TreemapChart } from 'echarts/charts';
+import { AriaComponent, GridComponent, LegendComponent, TooltipComponent, VisualMapComponent } from 'echarts/components';
+import { SVGRenderer } from 'echarts/renderers';
 import { createChart } from './charts.js';
 import type { BarData } from './charts.js';
+import { parseVisualizationContract } from './contract-schema.js';
+import type { KpiContract, TableContract, VisualizationContractV1 } from './contract-schema.js';
+import { DEFAULT_THEME, formatValue, toEChartsOption } from './echarts.js';
+import type { VisualTheme } from './echarts.js';
 
-export interface VisualizationContract {
-  readonly version: '1';
-  readonly kind: 'bar' | 'donut';
-  readonly title: string;
-  readonly unit: string;
-  readonly data: readonly BarData[];
+echarts.use([
+  BarChart, FunnelChart, HeatmapChart, LineChart, PieChart, SankeyChart, ScatterChart, TreemapChart,
+  AriaComponent, GridComponent, LegendComponent, TooltipComponent, VisualMapComponent, SVGRenderer,
+]);
+
+export interface RenderOptions {
+  readonly theme?: Partial<VisualTheme>;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+export interface RenderedVisualization {
+  destroy(): void;
 }
 
-function keysMatch(value: Record<string, unknown>, expected: string[]) {
-  return Object.keys(value).length === expected.length && expected.every((key) => key in value);
-}
-
-export function parseVisualizationContract(value: unknown): VisualizationContract {
-  if (!isRecord(value) || !keysMatch(value, ['version', 'kind', 'title', 'unit', 'data'])
-    || value.version !== '1' || (value.kind !== 'bar' && value.kind !== 'donut')
-    || typeof value.title !== 'string' || !value.title.trim()
-    || typeof value.unit !== 'string' || !Array.isArray(value.data) || value.data.length === 0) {
-    throw new TypeError('Invalid visualization contract: expected a version 1 bar or donut chart.');
-  }
-  const data = value.data.map((entry: unknown) => {
-    if (!isRecord(entry) || !keysMatch(entry, ['label', 'value'])
-      || typeof entry.label !== 'string' || !entry.label.trim()
-      || typeof entry.value !== 'number' || !Number.isFinite(entry.value) || entry.value < 0) {
-      throw new TypeError('Invalid visualization contract: chart data requires a label and non-negative finite value.');
-    }
-    return { label: entry.label, value: entry.value };
-  });
-  if (value.kind === 'donut' && !data.some((entry) => entry.value > 0)) {
-    throw new TypeError('Invalid visualization contract: a donut requires a positive total.');
-  }
-  return { version: '1', kind: value.kind, title: value.title, unit: value.unit, data };
-}
-
-export function renderVisualization(element: HTMLElement, value: unknown) {
-  const contract = parseVisualizationContract(value);
-  if (contract.kind === 'bar') {
-    return createChart(element, { kind: 'bar', title: contract.title, unit: contract.unit, data: contract.data });
-  }
-
+function renderDonutV1(element: HTMLElement, contract: VisualizationContractV1): RenderedVisualization {
   element.replaceChildren();
   const root = select(element);
   const chart = root.append('svg').attr('role', 'img').attr('aria-label', contract.title)
@@ -53,7 +32,7 @@ export function renderVisualization(element: HTMLElement, value: unknown) {
   const maxValue = contract.data.reduce((max, entry) => Math.max(max, entry.value), 0);
   const slices = pie<BarData>().sort(null).value((entry) => entry.value / maxValue)([...contract.data]);
   const total = slices.reduce((sum, slice) => sum + slice.value, 0);
-  const colors = ['#6fa3cf', '#d99460', '#93b369', '#b084ac', '#6fbdbd', '#c29f5f'];
+  const colors = DEFAULT_THEME.palette;
   const color = (index: number) => colors[index % colors.length] ?? '#6fa3cf';
   const percent = format('.1%');
   const describe = (slice: PieArcDatum<BarData>) => `${slice.data.label}: ${percent(slice.value / total)}`;
@@ -66,6 +45,76 @@ export function renderVisualization(element: HTMLElement, value: unknown) {
   entries.append('svg').attr('aria-hidden', 'true').attr('width', 10).attr('height', 10)
     .append('circle').attr('cx', 5).attr('cy', 5).attr('r', 4).attr('fill', (_, index) => color(index));
   entries.append('span').text(describe);
-
   return { destroy: () => element.replaceChildren() };
+}
+
+function part<K extends keyof HTMLElementTagNameMap>(tag: K, name: string, text?: string) {
+  const node = document.createElement(tag);
+  node.dataset.part = name;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function renderKpi(element: HTMLElement, contract: KpiContract): RenderedVisualization {
+  const figure = part('figure', 'kpi');
+  const value = part('data', 'kpi-value', formatValue(contract.value));
+  value.value = String(contract.value);
+  figure.append(part('figcaption', 'kpi-label', contract.title), value);
+  if (contract.unit) figure.append(part('span', 'kpi-unit', contract.unit));
+  element.replaceChildren(figure);
+  return { destroy: () => element.replaceChildren() };
+}
+
+function renderTable(element: HTMLElement, contract: TableContract): RenderedVisualization {
+  const table = part('table', 'table');
+  table.setAttribute('aria-label', contract.title);
+  const head = table.createTHead().insertRow();
+  const numeric = contract.columns.map((_, index) => contract.rows.some((row) => typeof row[index] === 'number'));
+  contract.columns.forEach((column, index) => {
+    const cell = part('th', 'table-head', column);
+    cell.scope = 'col';
+    if (numeric[index]) cell.dataset.numeric = '';
+    head.append(cell);
+  });
+  const body = table.createTBody();
+  for (const row of contract.rows) {
+    const tr = body.insertRow();
+    row.forEach((value, index) => {
+      const cell = part('td', 'table-cell', typeof value === 'number' ? formatValue(value) : value ?? '—');
+      if (numeric[index]) cell.dataset.numeric = '';
+      tr.append(cell);
+    });
+  }
+  const scroll = part('div', 'table-scroll');
+  scroll.append(table);
+  element.replaceChildren(scroll);
+  return { destroy: () => element.replaceChildren() };
+}
+
+export function renderVisualization(element: HTMLElement, value: unknown, options: RenderOptions = {}): RenderedVisualization {
+  const contract = parseVisualizationContract(value);
+  if (contract.version === '1') {
+    return contract.kind === 'bar'
+      ? createChart(element, { kind: 'bar', title: contract.title, unit: contract.unit, data: contract.data })
+      : renderDonutV1(element, contract);
+  }
+  if (contract.kind === 'kpi') return renderKpi(element, contract);
+  if (contract.kind === 'table') return renderTable(element, contract);
+
+  element.replaceChildren();
+  element.setAttribute('role', 'img');
+  element.setAttribute('aria-label', contract.title);
+  const chart = echarts.init(element, undefined, { renderer: 'svg' });
+  chart.setOption(toEChartsOption(contract, { ...DEFAULT_THEME, ...options.theme }));
+  const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(() => chart.resize());
+  observer?.observe(element);
+  return {
+    destroy: () => {
+      observer?.disconnect();
+      chart.dispose();
+      element.removeAttribute('role');
+      element.removeAttribute('aria-label');
+      element.replaceChildren();
+    },
+  };
 }
